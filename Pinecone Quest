@@ -190,6 +190,60 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
+        // --- Audio Engine ---
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playJumpSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playDingSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(980, audioCtx.currentTime + 0.05);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function playQuackSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
         // --- Setup Scene ---
         const scene = new THREE.Scene();
         let currentLevel = 1;
@@ -265,6 +319,7 @@
 
         // --- Menu Logic ---
         function startGame() {
+            initAudio();
             gameActive = true;
             document.getElementById('overlay').style.display = 'none';
             document.getElementById('ui').style.display = 'block';
@@ -535,6 +590,8 @@
         window.addEventListener('keydown', (e) => {
             if (!gameActive) return;
             if (e.code === 'Space' && jumpCount < maxJumps) {
+                // Sound effect
+                playJumpSound();
                 // Stronger initial push for super jump to avoid immediate re-collision
                 velocity.y = jumpPowerTimer > 0 ? 0.45 : 0.3;
                 jumpCount++;
@@ -655,6 +712,7 @@
                 const leafPos = t.position.clone().add(new THREE.Vector3(0, 0.8, 0));
                 if (player.position.distanceTo(leafPos) < 1.2) {
                     const ability = t.userData.ability;
+                    playDingSound(); // Tree power-up sounds
                     createExplosion(leafPos, ability === 'jump' ? 0x00ff88 : (ability === 'speed' ? 0xffcc00 : 0xcc00ff));
                     if (ability === 'jump') jumpPowerTimer = POWERUP_DURATION;
                     else if (ability === 'speed') speedPowerTimer = POWERUP_DURATION;
@@ -667,6 +725,7 @@
                 frogs[i].rotation.y += 0.05;
                 if (player.position.distanceTo(frogs[i].position) < 1.2) {
                     score += 30 * (multiPowerTimer > 0 ? 2 : 1);
+                    playDingSound();
                     createExplosion(frogs[i].position, 0x00ff00);
                     updateScoreUI();
                     scene.remove(frogs[i]); frogs.splice(i, 1);
@@ -687,6 +746,10 @@
                     else if (type === 'lamp') { eColor = 0xFFFF00; }
                     else if (type === 'chain') { eColor = 0x444444; }
                     else if (type === 'monkey') { eColor = 0x4E342E; }
+
+                    // Play sound based on score impact
+                    if (pGain > 0) playDingSound();
+                    else if (pGain < 0) playQuackSound();
 
                     score += pGain * (multiPowerTimer > 0 && pGain > 0 ? 2 : 1);
                     createExplosion(items[i].position, eColor);
@@ -710,6 +773,7 @@
                 player.position.copy(checkpointPos);
                 velocity.set(0,0,0); 
                 score = Math.max(-200, score - 15); 
+                playQuackSound(); // Falling sound
                 updateScoreUI(); 
             }
 
